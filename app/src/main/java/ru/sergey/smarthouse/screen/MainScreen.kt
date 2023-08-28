@@ -69,7 +69,9 @@ import androidx.navigation.compose.composable
 import kotlinx.coroutines.launch
 import me.saket.swipe.SwipeAction
 import me.saket.swipe.SwipeableActionsBox
+import androidx.compose.runtime.livedata.observeAsState
 import me.saket.swipe.rememberSwipeableActionsState
+import ru.sergey.smarthouse.UseCase
 import ru.sergey.smarthouse.base.common.LifeScreen
 import ru.sergey.smarthouse.base.common.item_compose.BoxImageLoad
 import ru.sergey.smarthouse.base.common.item_compose.TextButtonApp
@@ -78,6 +80,8 @@ import ru.sergey.smarthouse.base.extension.setNameNavArguments
 import ru.sergey.smarthouse.base.theme.TextApp
 import ru.sergey.smarthouse.base.theme.ThemeApp
 import ru.sergey.smarthouse.base.theme.DimApp
+import ru.sergey.smarthouse.data.api_client.ApiCamera
+import ru.sergey.smarthouse.data.api_client.Client
 import ru.sergey.smarthouse.models.api.Camera
 import ru.sergey.smarthouse.models.api.Door
 import ru.sergey.smarthouse.utils.MOCK_CAMERAS
@@ -98,13 +102,19 @@ class MainScreen(
 
 
     fun addRoute() = navBuilder.composable(route = route) { entry ->
-        val viewModel = MainViewModel()
+        val case = UseCase(api = ApiCamera(client = Client()))
+        val viewModel = MainViewModel(case)
+
+        val doors by viewModel.liveDataDoor.observeAsState()
+        val cameras by viewModel.liveDataCamera.observeAsState()
         LifeScreen(onStart = {
             viewModel.initStartScreen(navController)
+            viewModel.getDoors()
+            viewModel.getCameras()
         })
         ContentMain(
-            listDoors = MOCK_DOORS,
-            listCameras = MOCK_CAMERAS
+            listDoors = doors ?: listOf(),
+            listCameras = cameras ?: listOf()
         )
     }
 }
@@ -224,7 +234,7 @@ private fun TopScreen(
                 }
                 Box(
                     modifier = Modifier
-                        .offset(x = offsetDot-10.dp)
+                        .offset(x = offsetDot - 10.dp)
                         .width(buttonWidthDp)
                         .height(DimApp.menuItemsHeight)
                         .background(ThemeApp.colors.goodContent)
@@ -255,7 +265,7 @@ private fun ItemDoor(
             val archive = SwipeAction(
                 icon = rememberVectorPainter(Icons.TwoTone.Star),
                 background = ThemeApp.colors.background,
-                onSwipe = { isArchived =!isArchived  },
+                onSwipe = { isArchived = !isArchived },
                 isUndo = isArchived,
             )
 
@@ -335,7 +345,7 @@ enum class ScreenState {
 
     fun getNameState() = when (this) {
         CAMERAS -> TextApp.textСameras
-        DOORS -> TextApp.textDoors
+        DOORS   -> TextApp.textDoors
     }
 
     companion object {
@@ -363,7 +373,7 @@ private fun SwipeableBoxPreview(modifier: Modifier = Modifier) {
     val snooze = SwipeAction(
         icon = rememberVectorPainter(Icons.TwoTone.Create),
         background = Color.SeaBuckthorn,
-        onSwipe = { isSnoozed  },
+        onSwipe = { isSnoozed },
         isUndo = isSnoozed,
     )
     val archive = SwipeAction(

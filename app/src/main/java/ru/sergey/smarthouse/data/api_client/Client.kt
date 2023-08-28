@@ -6,6 +6,9 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser.parseString
 import com.google.gson.JsonSyntaxException
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.plugins.HttpResponseValidator
@@ -28,7 +31,7 @@ import ru.sergey.smarthouse.base.common.logI
 
 class Client() : Closeable {
     companion object {
-        const val BASE_URL: String = "http://cars.cprogroup.ru/api/rubetek"
+        const val BASE_URL: String = "http://cars.cprogroup.ru"
     }
 
     val api = HttpClient {
@@ -70,21 +73,6 @@ class Client() : Closeable {
     }
 }
 
-suspend inline fun <reified T> HttpClient.postRequest(
-    urlString: String, body: T
-) = post(urlString) { setBody(body) }
-
-suspend inline fun <reified T> HttpClient.getRequest(
-    urlString: String, body: T
-) = get(urlString) { setBody(body) }
-
-suspend inline fun <reified T> HttpClient.putRequest(
-    urlString: String, body: T
-) = put(urlString) { setBody(body) }
-
-suspend inline fun <reified T> HttpClient.deleteRequest(
-    urlString: String, body: T
-) = delete(urlString) { setBody(body) }
 
 private val loggerPretty = object : Logger {
     private val BODY_START = "BODY START"
