@@ -125,6 +125,7 @@ fun ContentMain(
     LaunchedEffect(key1 = pagerState.currentPage, block = {
         stateScreen = ScreenState.getStateByPage(pagerState.currentPage)
     })
+
     Scaffold(
         topBar = {
             TopScreen(
