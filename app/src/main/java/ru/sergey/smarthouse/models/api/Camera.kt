@@ -1,7 +1,7 @@
 package ru.sergey.smarthouse.models.api
 
 data class CameraResponse(
-    val `data`: Door,
+    val `data`: Data,
     val success: Boolean
 )
 

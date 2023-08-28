@@ -173,6 +173,7 @@ private fun TopScreen(
     val density = LocalDensity.current
     var columnHeightDp by remember { mutableStateOf(0.dp) }
     var columnWidthDp by remember { mutableStateOf(0.dp) }
+    var buttonWidthDp by remember { mutableStateOf(0.dp) }
     var offsetTargetDot by remember { mutableStateOf(0.dp) }
     val offsetDot by animateDpAsState(targetValue = offsetTargetDot, label = "")
 
@@ -211,6 +212,7 @@ private fun TopScreen(
                                         offsetTargetDot =
                                             with(density) { it.positionInWindow().x.toDp() }
                                     }
+                                    buttonWidthDp = with(density) { it.size.width.toDp() }
                                 },
                             onClick = {
                                 onChangeStateScreen.invoke(item)
@@ -222,8 +224,8 @@ private fun TopScreen(
                 }
                 Box(
                     modifier = Modifier
-                        .offset(x = offsetDot)
-                        .width(columnWidthDp / 2)
+                        .offset(x = offsetDot-10.dp)
+                        .width(buttonWidthDp)
                         .height(DimApp.menuItemsHeight)
                         .background(ThemeApp.colors.goodContent)
                 )
