@@ -4,15 +4,11 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import io.realm.kotlin.Realm
-import io.realm.kotlin.ext.query
 import kotlinx.coroutines.launch
 import ru.sergey.smarthouse.UseCase
 import ru.sergey.smarthouse.base.common.BaseViewModel
 import ru.sergey.smarthouse.base.common.logD
-import ru.sergey.smarthouse.data.db.entity.CameraEntity
-import ru.sergey.smarthouse.data.db.entity.DoorEntity
 import ru.sergey.smarthouse.models.api.Camera
-import ru.sergey.smarthouse.models.api.DataCamera
 import ru.sergey.smarthouse.models.api.Door
 
 
@@ -40,6 +36,19 @@ class MainViewModel(private val useCase: UseCase, private val realm: Realm) : Ba
             flowSuccess = {
                 _liveDataCamera.value = it.cameras
             })
+    }
+
+    fun changeDoor(door: Door) = viewModelScope.launch {
+        useCase.updatingDoor(door = door, flowStart = {}, flowSuccess = {
+            _liveDataDoor.value = it
+        })
+    }
+
+    fun changeCamera(camera: Camera) = viewModelScope.launch {
+        useCase.updatingCamera(
+            camera = camera,
+            flowStart = {},
+            flowSuccess = { _liveDataCamera.value = it.cameras })
     }
 
 }

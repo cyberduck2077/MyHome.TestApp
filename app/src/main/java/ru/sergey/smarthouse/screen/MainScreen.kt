@@ -6,6 +6,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -44,6 +45,7 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,27 +54,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.saket.swipe.SwipeAction
 import me.saket.swipe.SwipeableActionsBox
-import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.text.style.TextAlign
-import kotlinx.coroutines.delay
 import me.saket.swipe.rememberSwipeableActionsState
+import ru.sergey.smarthouse.R
 import ru.sergey.smarthouse.UseCase
 import ru.sergey.smarthouse.base.common.LifeScreen
 import ru.sergey.smarthouse.base.common.item_compose.BoxImageLoad
@@ -81,9 +84,9 @@ import ru.sergey.smarthouse.base.common.item_compose.TextButtonApp
 import ru.sergey.smarthouse.base.common.swipe_refresh.BoxSwipeRefresh
 import ru.sergey.smarthouse.base.common.swipe_refresh.rememberSwipeRefreshState
 import ru.sergey.smarthouse.base.extension.setNameNavArguments
+import ru.sergey.smarthouse.base.theme.DimApp
 import ru.sergey.smarthouse.base.theme.TextApp
 import ru.sergey.smarthouse.base.theme.ThemeApp
-import ru.sergey.smarthouse.base.theme.DimApp
 import ru.sergey.smarthouse.data.api_client.ApiCamera
 import ru.sergey.smarthouse.data.api_client.Client
 import ru.sergey.smarthouse.data.db.DbWorker
@@ -122,9 +125,11 @@ class MainScreen(
             refresh = {
                 when (it) {
                     ScreenState.CAMERAS -> viewModel.getCameras()
-                    ScreenState.DOORS   -> viewModel.getDoors()
+                    ScreenState.DOORS -> viewModel.getDoors()
                 }
             },
+            newValueDoor = viewModel::changeDoor,
+            newValueCamera = viewModel::changeCamera,
         )
     }
 }
@@ -134,7 +139,9 @@ class MainScreen(
 fun ContentMain(
     listDoors: List<Door>,
     listCameras: List<Camera>,
-    refresh: (ScreenState) -> Unit
+    refresh: (ScreenState) -> Unit,
+    newValueDoor: (Door) -> Unit,
+    newValueCamera: (Camera) -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     val stateList by remember { mutableStateOf(ScreenState.values()) }
@@ -241,11 +248,11 @@ fun ContentMain(
                     ) { page ->
                     when (page) {
                         0 -> {
-                            ItemCamera(listCameras = listCameras)
+                            ItemCamera(listCameras = listCameras, newValue = newValueCamera)
                         }
 
                         1 -> {
-                            ItemDoor(listDoors = listDoors)
+                            ItemDoor(listDoors = listDoors, newValue = newValueDoor)
                         }
                     }
                 }
@@ -278,10 +285,18 @@ private fun TopScreen(
 @Composable
 private fun ItemDoor(
     listDoors: List<Door>,
+    newValue: (Door) -> Unit
 ) {
+    var clickItem by remember { mutableStateOf<Door?>(null) }
+    val isViewDialog by remember(clickItem) { mutableStateOf(clickItem != null) }
 
-
-    DialogApp(oldValue = "todo", newValue = {}, onDismiss = {})
+    if (isViewDialog)
+        DialogApp(
+            oldValue = clickItem?.name ?: "",
+            newValue = { new ->
+                clickItem?.let { newValue.invoke(it.copy(name = new)) }
+            },
+            onDismiss = { clickItem = null })
 
     LazyColumn(modifier = Modifier) {
         item {
@@ -303,7 +318,7 @@ private fun ItemDoor(
                 background = ThemeApp.colors.background,
                 onSwipe = {
                     isEdit = !isEdit
-//                    changeItem = item.name ?: ""
+                    clickItem = item
                 },
                 isUndo = isEdit,
             )
@@ -326,10 +341,30 @@ private fun ItemDoor(
                             modifier = Modifier.fillMaxWidth(),
                             image = item.snapshot
                         ) {
-                            BoxImageLoad(
-                                modifier = Modifier.align(Alignment.Center),
-                                image = Icon(Icons.Filled.PlayArrow, "Floating action button.")
-                            )
+                            Box(modifier = Modifier
+                                .fillMaxSize(), contentAlignment = Alignment.Center
+                            ) {
+                                BoxImageLoad(
+                                    image = R.drawable.ic_rec,
+                                    colorFilter = ColorFilter.tint(ThemeApp.colors.attentionContent),
+                                    alignment = Alignment.TopStart,
+                                    modifier = Modifier
+                                        .size(
+                                            DimApp.iconSizeStandard
+                                        )
+                                        .padding(DimApp.screenPadding)
+                                )
+                                PlayButton()
+                                BoxImageLoad(
+                                    image = R.drawable.ic_star,
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .size(
+                                            DimApp.iconSizeStandard
+                                        )
+                                        .padding(DimApp.screenPadding)
+                                )
+                            }
                         }
                         Text(
                             modifier = Modifier.padding(DimApp.screenPadding),
@@ -345,6 +380,7 @@ private fun ItemDoor(
 @Composable
 private fun ItemCamera(
     listCameras: List<Camera>,
+    newValue: (Camera) -> Unit
 ) {
     LazyColumn(modifier = Modifier) {
         item {
@@ -382,114 +418,30 @@ enum class ScreenState {
 
     fun getNameState() = when (this) {
         CAMERAS -> TextApp.textСameras
-        DOORS   -> TextApp.textDoors
+        DOORS -> TextApp.textDoors
     }
 
     companion object {
         fun getStateByPage(page: Int) = when (page) {
-            0    -> CAMERAS
+            0 -> CAMERAS
             else -> DOORS
         }
     }
 }
 
-//------------------
 
 @Composable
-private fun SwipeableBoxPreview(modifier: Modifier = Modifier) {
-    var isSnoozed by rememberSaveable { mutableStateOf(false) }
-    var isArchived by rememberSaveable { mutableStateOf(false) }
-    var state = rememberSwipeableActionsState()
-
-    val replyAll = SwipeAction(
-        icon = rememberVectorPainter(Icons.TwoTone.Call),
-        background = Color.Perfume,
-        onSwipe = { println("Reply swiped") },
-        isUndo = false,
-    )
-    val snooze = SwipeAction(
-        icon = rememberVectorPainter(Icons.TwoTone.Create),
-        background = Color.SeaBuckthorn,
-        onSwipe = { isSnoozed },
-        isUndo = isSnoozed,
-    )
-    val archive = SwipeAction(
-        icon = rememberVectorPainter(Icons.TwoTone.Star),
-        background = Color.Fern,
-        onSwipe = { isArchived },
-        isUndo = isArchived,
-    )
-
-    SwipeableActionsBox(
-        modifier = modifier,
-        startActions = listOf(replyAll),
-        endActions = listOf(snooze, archive),
-        swipeThreshold = 40.dp,
-        backgroundUntilSwipeThreshold = MaterialTheme.colorScheme.surfaceColorAtElevation(40.dp),
-        state = state
-    ) {
-        BatmanIpsumItem(
-            isSnoozed = isSnoozed
-        )
-    }
-}
-
-@Composable
-private fun BatmanIpsumItem(
-    modifier: Modifier = Modifier,
-    isSnoozed: Boolean
-) {
-    Row(
-        modifier
-            .fillMaxWidth()
-            .shadow(1.dp)
-            .background(MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp))
-            .padding(vertical = 16.dp, horizontal = 20.dp)
-            .animateContentSize()
-    ) {
-        Box(
-            Modifier
-                .padding(top = 2.dp)
-                .size(52.dp)
-                .background(MaterialTheme.colorScheme.primary, CircleShape)
-        )
-
-        Column(Modifier.padding(horizontal = 16.dp)) {
-            Text(
-                text = "The Batman",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                modifier = Modifier.padding(top = 4.dp),
-                text = "Fear is a tool. When that light hits the sky, it’s not just a call. It’s a warning. For them.",
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            if (isSnoozed) {
-                Text(
-                    modifier = Modifier
-                        .padding(top = 16.dp)
-                        .background(Color.SeaBuckthorn.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    text = "Snoozed until tomorrow",
-                    style = MaterialTheme.typography.labelLarge
+fun BoxScope.PlayButton() {
+    BoxImageLoad(
+        alignment = Alignment.Center,
+        image = Icon(
+            Icons.Filled.PlayArrow,
+            "Floating action button.",
+            modifier = Modifier
+                .size(
+                    DimApp.iconSizeTouchStandard
                 )
-            }
-        }
-    }
-}
-
-val Color.Companion.SeaBuckthorn get() = Color(0xFFF9A825)
-val Color.Companion.Fern get() = Color(0xFF66BB6A)
-val Color.Companion.Perfume get() = Color(0xFFD0BCFF)
-
-@Preview
-@Composable
-fun PreviewTest() {
-    SwipeableBoxPreview(
-        Modifier
-            .padding(DimApp.screenPadding)
-            .fillMaxWidth()
-            .height(DimApp.screenPadding * 5)
+        )
     )
+
 }

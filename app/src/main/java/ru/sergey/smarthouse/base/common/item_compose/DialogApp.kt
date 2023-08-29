@@ -69,6 +69,7 @@ fun DialogApp(
                     .fillMaxWidth()
                     .weight(1f), onClick = {
                     newValue.invoke(value.text)
+                    onDismiss.invoke()
                 }) {
                     Text(text = TextApp.buttonGood)
                 }

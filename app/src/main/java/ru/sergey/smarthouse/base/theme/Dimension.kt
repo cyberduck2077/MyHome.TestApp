@@ -40,7 +40,7 @@ data class Dimensions(
         val iconSizeSmale: Dp = 13.dp,
         val iconSizeStandard: Dp = 25.dp,
         val iconSizeTouchStandard: Dp = 48.dp,
-        val iconSizeBig: Dp = 30.dp,
+        val iconSizeBig: Dp = 38.dp,
         val iconSizeLittle: Dp = 18.dp,
 
 

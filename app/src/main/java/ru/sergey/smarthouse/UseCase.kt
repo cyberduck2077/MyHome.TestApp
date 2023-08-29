@@ -2,6 +2,10 @@ package ru.sergey.smarthouse
 
 import io.realm.kotlin.Realm
 import io.realm.kotlin.ext.query
+import io.realm.kotlin.query.RealmResults
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import ru.sergey.smarthouse.base.common.logD
 import ru.sergey.smarthouse.base.common.logE
 import ru.sergey.smarthouse.data.api_client.ApiCamera
 import ru.sergey.smarthouse.data.db.entity.CameraEntity
@@ -44,8 +48,7 @@ class UseCase(
                     }
                 }
                 flowSuccess.invoke(resp)
-            }
-            else {
+            } else {
                 flowSuccess.invoke(mappingResponseFromDbCamera())
             }
         }
@@ -73,7 +76,11 @@ class UseCase(
         }
         response?.data?.let { resp ->
             if (resp.isNotEmpty()) {
+
                 realm.write {
+                    val query = this.query<DoorEntity>()
+                    delete(query)
+
                     resp.forEach {
                         val doorR = DoorEntity()
                         doorR.mappingResponse(it)
@@ -81,11 +88,44 @@ class UseCase(
                     }
                 }
                 flowSuccess.invoke(resp)
-            }
-            else {
+            } else {
                 flowSuccess.invoke(mappingResponseFromDbDoor())
             }
         }
+    }
+
+    suspend fun updatingDoor(
+        door: Door,
+        flowStart: () -> Unit,
+        flowSuccess: (List<Door>) -> Unit,
+    ) = coroutineScope {
+        flowStart.invoke()
+
+        realm.query<DoorEntity>("id == $0", door.id)
+            .first()
+            .find()?.also { d ->
+                realm.write {
+                    findLatest(d)?.mappingResponse(door)
+                }
+            }
+        flowSuccess.invoke(mappingResponseFromDbDoor())
+    }
+
+    suspend fun updatingCamera(
+        camera: Camera,
+        flowStart: () -> Unit,
+        flowSuccess: (DataCamera) -> Unit,
+    ) = coroutineScope {
+        flowStart.invoke()
+
+        realm.query<CameraEntity>("id == $0", camera.id)
+            .first()
+            .find()?.also { d ->
+                realm.write {
+                    findLatest(d)?.mappingResponse(camera)
+                }
+            }
+        flowSuccess.invoke(mappingResponseFromDbCamera())
     }
 
     private fun mappingResponseFromDbDoor(): List<Door> {
