@@ -10,6 +10,8 @@ data class Dimensions(
         val lineHeightIsOnline: Dp = 3.dp,
         val lineHeightBig: Dp = 4.dp,
 
+        val baseElevation: Dp = 9.dp,
+
         val screenPadding: Dp = 16.dp,
         val screenPaddingHorrizontal: Dp = 8.dp,
         val crazyPadding: Dp = 12.dp,

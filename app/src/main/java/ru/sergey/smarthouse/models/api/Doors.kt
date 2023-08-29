@@ -1,5 +1,7 @@
 package ru.sergey.smarthouse.models.api
 
+import ru.sergey.smarthouse.data.db.entity.DoorEntity
+
 data class DoorsResponse(
     val `data`: List<Door>,
     val success: Boolean

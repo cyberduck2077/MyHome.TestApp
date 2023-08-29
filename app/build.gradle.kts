@@ -96,6 +96,8 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation")
     implementation("io.ktor:ktor-utils")
 
+    implementation("androidx.compose.runtime:runtime-livedata:1.4.3")
+
     implementation("io.coil-kt:coil-compose:2.4.0")
     implementation("io.coil-kt:coil-svg:2.4.0")
 

@@ -3,8 +3,11 @@ package ru.sergey.smarthouse.base.common
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
-import androidx.compose.runtime.*
-import ru.sergey.smarthouse.base.common.item_compose.ExitOrNoDialog
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 
 
 @Composable
@@ -29,16 +32,4 @@ fun BackPressHandler(
     })
 }
 
-@Composable
-fun BackPressExit(
-    title: String,
-    anotherWay: (() -> Unit)? = null,
-) {
-    val exitCheck = remember { mutableStateOf(false) }
-    BackPressHandler { exitCheck.value = true }
-    if (exitCheck.value) ExitOrNoDialog(
-        title = title, anotherWay = anotherWay) {
-        exitCheck.value = false
-    }
-}
 
