@@ -6,7 +6,7 @@ import ru.sergey.smarthouse.data.db.entity.CameraEntity
 import ru.sergey.smarthouse.data.db.entity.DoorEntity
 
 class DbWorker() {
-    val realm: Realm by lazy {
+    private val realm: Realm by lazy {
         Realm.open(
             RealmConfiguration.Builder(
                 schema = setOf(

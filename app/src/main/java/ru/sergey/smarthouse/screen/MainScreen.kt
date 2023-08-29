@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -24,12 +25,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.twotone.AccountBox
-import androidx.compose.material.icons.twotone.AddCircle
 import androidx.compose.material.icons.twotone.Call
-import androidx.compose.material.icons.twotone.Clear
 import androidx.compose.material.icons.twotone.Create
 import androidx.compose.material.icons.twotone.Star
 import androidx.compose.material3.Card
@@ -38,6 +35,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -61,7 +59,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -70,22 +67,28 @@ import kotlinx.coroutines.launch
 import me.saket.swipe.SwipeAction
 import me.saket.swipe.SwipeableActionsBox
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.text.style.TextAlign
+import kotlinx.coroutines.delay
 import me.saket.swipe.rememberSwipeableActionsState
 import ru.sergey.smarthouse.UseCase
 import ru.sergey.smarthouse.base.common.LifeScreen
 import ru.sergey.smarthouse.base.common.item_compose.BoxImageLoad
+import ru.sergey.smarthouse.base.common.item_compose.DialogApp
 import ru.sergey.smarthouse.base.common.item_compose.TextButtonApp
-import ru.sergey.smarthouse.base.common.logD
+import ru.sergey.smarthouse.base.common.swipe_refresh.BoxSwipeRefresh
+import ru.sergey.smarthouse.base.common.swipe_refresh.rememberSwipeRefreshState
 import ru.sergey.smarthouse.base.extension.setNameNavArguments
 import ru.sergey.smarthouse.base.theme.TextApp
 import ru.sergey.smarthouse.base.theme.ThemeApp
 import ru.sergey.smarthouse.base.theme.DimApp
 import ru.sergey.smarthouse.data.api_client.ApiCamera
 import ru.sergey.smarthouse.data.api_client.Client
+import ru.sergey.smarthouse.data.db.DbWorker
 import ru.sergey.smarthouse.models.api.Camera
 import ru.sergey.smarthouse.models.api.Door
-import ru.sergey.smarthouse.utils.MOCK_CAMERAS
-import ru.sergey.smarthouse.utils.MOCK_DOORS
 
 class MainScreen(
     private val navBuilder: NavGraphBuilder,
@@ -102,8 +105,9 @@ class MainScreen(
 
 
     fun addRoute() = navBuilder.composable(route = route) { entry ->
-        val case = UseCase(api = ApiCamera(client = Client()))
-        val viewModel = MainViewModel(case)
+        val realm = DbWorker().getInstance()
+        val case = UseCase(api = ApiCamera(client = Client()), realm = realm)
+        val viewModel = MainViewModel(case, realm)
 
         val doors by viewModel.liveDataDoor.observeAsState()
         val cameras by viewModel.liveDataCamera.observeAsState()
@@ -114,7 +118,13 @@ class MainScreen(
         })
         ContentMain(
             listDoors = doors ?: listOf(),
-            listCameras = cameras ?: listOf()
+            listCameras = cameras ?: listOf(),
+            refresh = {
+                when (it) {
+                    ScreenState.CAMERAS -> viewModel.getCameras()
+                    ScreenState.DOORS   -> viewModel.getDoors()
+                }
+            },
         )
     }
 }
@@ -124,47 +134,119 @@ class MainScreen(
 fun ContentMain(
     listDoors: List<Door>,
     listCameras: List<Camera>,
+    refresh: (ScreenState) -> Unit
 ) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     val stateList by remember { mutableStateOf(ScreenState.values()) }
     var stateScreen by remember { mutableStateOf(ScreenState.DOORS) }
-    var topPadding by remember { mutableStateOf(0.dp) }
     val scope = rememberCoroutineScope()
     val pagerState: PagerState = rememberPagerState()
 
+    var isRefreshing by remember { mutableStateOf(false) }
+    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing)
+    val heightOffset = remember { 100f }
+    var dynamicOffsetHeightPx by remember { mutableStateOf(0f) }
+    val density = LocalDensity.current
+    var buttonWidthDp by remember { mutableStateOf(0.dp) }
+    var offsetTargetDot by remember { mutableStateOf(0.dp) }
+    val offsetDot by animateDpAsState(targetValue = offsetTargetDot, label = "")
+
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                val newOffset = dynamicOffsetHeightPx + delta
+                dynamicOffsetHeightPx = newOffset.coerceIn(-heightOffset, 0f)
+                return Offset.Zero
+            }
+        }
+    }
+    LaunchedEffect(isRefreshing) {
+        if (isRefreshing) {
+            delay(1000L)
+            isRefreshing = false
+        }
+    }
+
     LaunchedEffect(key1 = pagerState.currentPage, block = {
         stateScreen = ScreenState.getStateByPage(pagerState.currentPage)
+        refresh.invoke(stateScreen)
     })
     Scaffold(
         topBar = {
             TopScreen(
-                scrollBehavior = scrollBehavior,
-                stateScreen = stateScreen,
-                onChangeStateScreen = { stateScreen = it },
-                onChangeHeight = { topPadding = it },
-                animateScrollToPage = { index ->
-                    scope.launch {
-                        pagerState.animateScrollToPage(index)
-                    }
-                }
+                scrollBehavior = scrollBehavior
             )
         },
     ) { innerPadding ->
-        HorizontalPager(
-            modifier = Modifier.padding(innerPadding),
-            contentPadding = PaddingValues(0.dp),
-            verticalAlignment = Alignment.Top,
-            state = pagerState,
-            pageCount = stateList.size,
-
-            ) { page ->
-            when (page) {
-                0 -> {
-                    ItemCamera(listCameras = listCameras)
+        BoxSwipeRefresh(
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(nestedScrollConnection),
+            indicatorPadding = innerPadding,
+            state = swipeRefreshState,
+            onRefresh = {
+                refresh.invoke(stateScreen)
+                isRefreshing = true
+            },
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxWidth(),
+            ) {
+                Surface(shadowElevation = DimApp.baseElevation) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ScreenState.values().forEachIndexed { index, item ->
+                            TextButtonApp(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .onGloballyPositioned {
+                                        if (stateScreen == item) {
+                                            offsetTargetDot =
+                                                with(density) { it.positionInWindow().x.toDp() }
+                                        }
+                                        buttonWidthDp = with(density) { it.size.width.toDp() }
+                                    },
+                                onClick = {
+                                    stateScreen = item
+                                    scope.launch {
+                                        pagerState.animateScrollToPage(index)
+                                    }
+                                },
+                                text = item.getNameState()
+                            )
+                        }
+                    }
                 }
 
-                1 -> {
-                    ItemDoor(listDoors = listDoors)
+                Box(
+                    modifier = Modifier
+                        .offset(x = offsetDot)
+                        .width(buttonWidthDp)
+                        .height(DimApp.menuItemsHeight)
+                        .background(ThemeApp.colors.primary)
+                )
+                HorizontalPager(
+                    contentPadding = PaddingValues(0.dp),
+                    verticalAlignment = Alignment.Top,
+                    state = pagerState,
+                    pageCount = stateList.size,
+
+                    ) { page ->
+                    when (page) {
+                        0 -> {
+                            ItemCamera(listCameras = listCameras)
+                        }
+
+                        1 -> {
+                            ItemDoor(listDoors = listDoors)
+                        }
+                    }
                 }
             }
         }
@@ -175,71 +257,18 @@ fun ContentMain(
 @Composable
 private fun TopScreen(
     scrollBehavior: TopAppBarScrollBehavior,
-    stateScreen: ScreenState,
-    onChangeStateScreen: (ScreenState) -> Unit,
-    onChangeHeight: (Dp) -> Unit,
-    animateScrollToPage: (Int) -> Unit,
 ) {
-    val density = LocalDensity.current
-    var columnHeightDp by remember { mutableStateOf(0.dp) }
-    var columnWidthDp by remember { mutableStateOf(0.dp) }
-    var buttonWidthDp by remember { mutableStateOf(0.dp) }
-    var offsetTargetDot by remember { mutableStateOf(0.dp) }
-    val offsetDot by animateDpAsState(targetValue = offsetTargetDot, label = "")
-
     CenterAlignedTopAppBar(
         modifier = Modifier
             .nestedScroll(scrollBehavior.nestedScrollConnection)
-            .onGloballyPositioned { coordinates ->
-                columnHeightDp = with(density) { coordinates.size.height.toDp() }
-                columnWidthDp = with(density) { coordinates.size.width.toDp() }
-                onChangeHeight(columnHeightDp)
-            }
             .background(ThemeApp.colors.goodContent),
         colors = TopAppBarDefaults.smallTopAppBarColors(),
         title = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth(),
-//                    .padding(top = dimApp.screenPadding)
-            ) {
-//                Text(
-//                    text = TextApp.titleMainScreen,
-//                    modifier = Modifier.fillMaxWidth(),
-//                    textAlign = TextAlign.Center
-//                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    ScreenState.values().forEachIndexed { index, item ->
-                        TextButtonApp(
-                            modifier = Modifier
-                                .weight(1f)
-                                .onGloballyPositioned {
-                                    if (stateScreen == item) {
-                                        offsetTargetDot =
-                                            with(density) { it.positionInWindow().x.toDp() }
-                                    }
-                                    buttonWidthDp = with(density) { it.size.width.toDp() }
-                                },
-                            onClick = {
-                                onChangeStateScreen.invoke(item)
-                                animateScrollToPage(index)
-                            },
-                            text = item.getNameState()
-                        )
-                    }
-                }
-                Box(
-                    modifier = Modifier
-                        .offset(x = offsetDot - 10.dp)
-                        .width(buttonWidthDp)
-                        .height(DimApp.menuItemsHeight)
-                        .background(ThemeApp.colors.goodContent)
-                )
-            }
+            Text(
+                text = TextApp.titleMainScreen,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            )
         },
         scrollBehavior = scrollBehavior
     )
@@ -249,27 +278,34 @@ private fun TopScreen(
 private fun ItemDoor(
     listDoors: List<Door>,
 ) {
+
+
+    DialogApp(oldValue = "todo", newValue = {}, onDismiss = {})
+
     LazyColumn(modifier = Modifier) {
         item {
             Spacer(modifier = Modifier.height(DimApp.screenPadding))
         }
         items(listDoors) { item ->
-            var isSnoozed by rememberSaveable { mutableStateOf(false) }
-            var isArchived by rememberSaveable { mutableStateOf(false) }
+            var isFavorite by rememberSaveable { mutableStateOf(false) }
+            var isEdit by rememberSaveable { mutableStateOf(false) }
             val snooze = SwipeAction(
-                icon = rememberVectorPainter(Icons.TwoTone.Create),
-                background = ThemeApp.colors.background,
-                onSwipe = { isSnoozed = !isSnoozed },
-                isUndo = isSnoozed,
-            )
-            val archive = SwipeAction(
                 icon = rememberVectorPainter(Icons.TwoTone.Star),
                 background = ThemeApp.colors.background,
-                onSwipe = { isArchived = !isArchived },
-                isUndo = isArchived,
+                onSwipe = {
+                    isFavorite = !isFavorite
+                },
+                isUndo = isFavorite,
             )
-
-            var state = rememberSwipeableActionsState()
+            val archive = SwipeAction(
+                icon = rememberVectorPainter(Icons.TwoTone.Create),
+                background = ThemeApp.colors.background,
+                onSwipe = {
+                    isEdit = !isEdit
+//                    changeItem = item.name ?: ""
+                },
+                isUndo = isEdit,
+            )
 
             Card(
                 modifier = Modifier
@@ -282,7 +318,7 @@ private fun ItemDoor(
                 SwipeableActionsBox(
                     startActions = listOf(),
                     endActions = listOf(snooze, archive),
-                    state = state
+                    state = rememberSwipeableActionsState()
                 ) {
                     Column(modifier = Modifier) {
                         BoxImageLoad(
@@ -350,7 +386,7 @@ enum class ScreenState {
 
     companion object {
         fun getStateByPage(page: Int) = when (page) {
-            0 -> CAMERAS
+            0    -> CAMERAS
             else -> DOORS
         }
     }
