@@ -6,6 +6,9 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser.parseString
 import com.google.gson.JsonSyntaxException
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.plugins.HttpResponseValidator

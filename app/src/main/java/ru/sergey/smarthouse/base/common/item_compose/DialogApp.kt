@@ -69,7 +69,10 @@ fun DialogApp(
                     .fillMaxWidth()
                     .weight(1f), onClick = {
                     newValue.invoke(value.text)
+<<<<<<< HEAD
                     onDismiss.invoke()
+=======
+>>>>>>> dev/realm
                 }) {
                     Text(text = TextApp.buttonGood)
                 }
