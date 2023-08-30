@@ -10,6 +10,8 @@ data class Dimensions(
         val lineHeightIsOnline: Dp = 3.dp,
         val lineHeightBig: Dp = 4.dp,
 
+        val baseElevation: Dp = 9.dp,
+
         val screenPadding: Dp = 16.dp,
         val screenPaddingHorrizontal: Dp = 8.dp,
         val crazyPadding: Dp = 12.dp,
@@ -38,7 +40,7 @@ data class Dimensions(
         val iconSizeSmale: Dp = 13.dp,
         val iconSizeStandard: Dp = 25.dp,
         val iconSizeTouchStandard: Dp = 48.dp,
-        val iconSizeBig: Dp = 30.dp,
+        val iconSizeBig: Dp = 38.dp,
         val iconSizeLittle: Dp = 18.dp,
 
 

@@ -5,7 +5,6 @@ plugins {
     id("kotlin-kapt")
     id("kotlin-parcelize")
     id("kotlinx-serialization")
-    id("dagger.hilt.android.plugin")
     id("io.realm.kotlin")
 }
 
@@ -79,9 +78,6 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:$navigationVersion")
     implementation("androidx.navigation:navigation-common-ktx:$navigationVersion")
 
-    kapt("com.google.dagger:hilt-compiler:2.44.2")
-    implementation("com.google.dagger:hilt-android:2.44.2")
-    implementation("androidx.hilt:hilt-navigation-compose:1.0.0")
 
     implementation("io.realm.kotlin:library-base:1.10.0")// Add to use local realm (no sync)
     implementation("io.realm.kotlin:library-sync:1.10.0")// Add to use Device Sync
@@ -95,6 +91,8 @@ dependencies {
     implementation("io.ktor:ktor-serialization-jackson")
     implementation("io.ktor:ktor-client-content-negotiation")
     implementation("io.ktor:ktor-utils")
+
+    implementation("androidx.compose.runtime:runtime-livedata:1.4.3")
 
     implementation("io.coil-kt:coil-compose:2.4.0")
     implementation("io.coil-kt:coil-svg:2.4.0")

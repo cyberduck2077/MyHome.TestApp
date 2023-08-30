@@ -13,11 +13,6 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
-import io.ktor.client.request.delete
-import io.ktor.client.request.get
-import io.ktor.client.request.post
-import io.ktor.client.request.put
-import io.ktor.client.request.setBody
 import io.ktor.http.takeFrom
 import io.ktor.serialization.jackson.jackson
 import io.ktor.serialization.kotlinx.json.json
@@ -28,7 +23,7 @@ import ru.sergey.smarthouse.base.common.logI
 
 class Client() : Closeable {
     companion object {
-        const val BASE_URL: String = "http://cars.cprogroup.ru/api/rubetek"
+        const val BASE_URL: String = "http://cars.cprogroup.ru"
     }
 
     val api = HttpClient {
@@ -70,21 +65,6 @@ class Client() : Closeable {
     }
 }
 
-suspend inline fun <reified T> HttpClient.postRequest(
-    urlString: String, body: T
-) = post(urlString) { setBody(body) }
-
-suspend inline fun <reified T> HttpClient.getRequest(
-    urlString: String, body: T
-) = get(urlString) { setBody(body) }
-
-suspend inline fun <reified T> HttpClient.putRequest(
-    urlString: String, body: T
-) = put(urlString) { setBody(body) }
-
-suspend inline fun <reified T> HttpClient.deleteRequest(
-    urlString: String, body: T
-) = delete(urlString) { setBody(body) }
 
 private val loggerPretty = object : Logger {
     private val BODY_START = "BODY START"
